@@ -70,11 +70,13 @@ ${knowledge}`,
       "I wasn't able to generate a response.";
 
     return NextResponse.json({ response });
-  } catch (error) {
-    console.error(error);
+    } catch (error: any) {
+    console.error("GROQ ERROR:", error);
 
     return NextResponse.json(
-      { error: "Something went wrong." },
+      {
+        error: error?.message || "Something went wrong.",
+      },
       { status: 500 }
     );
   }
