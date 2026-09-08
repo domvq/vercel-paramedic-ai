@@ -2,8 +2,68 @@
 
 import { useState } from "react";
 
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 export default function Home() {
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const sendMessage = async () => {
+    const text = message.trim();
+
+    if (!text || loading) return;
+
+    setMessage("");
+
+    const userMessage: Message = {
+      role: "user",
+      content: text,
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: text,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Something went wrong.");
+      }
+
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: data.response,
+        },
+      ]);
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content:
+            "Sorry, I couldn't connect to the AI right now. Please try again.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const suggestions = [
     "What are the key signs of a STEMI?",
@@ -20,10 +80,13 @@ export default function Home() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#171717] text-sm text-white">
             R
           </div>
-          <span className="font-semibold tracking-tight">RUNSHEET</span>
+          <span className="font-semibold">RUNSHEET</span>
         </div>
 
-        <button className="mb-6 rounded-lg border border-[#d5d5d0] bg-white px-4 py-3 text-left text-sm font-medium shadow-sm">
+        <button
+          onClick={() => setMessages([])}
+          className="mb-6 rounded-lg border border-[#d5d5d0] bg-white px-4 py-3 text-left text-sm font-medium shadow-sm hover:bg-[#fafafa]"
+        >
           + New chat
         </button>
 
@@ -50,10 +113,9 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* Main area */}
+      {/* Main */}
       <section className="flex min-h-screen flex-1 flex-col">
-        {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b border-[#deded9] bg-[#f7f7f5] px-5 md:px-8">
+        <header className="flex h-16 items-center justify-between border-b border-[#deded9] px-5 md:px-8">
           <div>
             <div className="font-semibold">Paramedic AI Copilot</div>
             <div className="text-xs text-[#777]">
@@ -67,54 +129,85 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Chat */}
-        <div className="flex flex-1 justify-center overflow-y-auto">
-          <div className="w-full max-w-3xl px-5 py-16 md:px-8">
-            <div className="mb-10 text-center">
-              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#171717] text-xl text-white">
-                R
+        {/* Conversation */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl px-5 py-10 md:px-8">
+            {messages.length === 0 ? (
+              <>
+                <div className="mb-10 text-center">
+                  <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#171717] text-xl text-white">
+                    R
+                  </div>
+
+                  <h1 className="text-3xl font-semibold tracking-tight">
+                    How can I help?
+                  </h1>
+
+                  <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#707070]">
+                    Ask questions about assessment, pharmacology, differential
+                    diagnosis, trauma, airway management, or other paramedic
+                    topics.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {suggestions.map((question) => (
+                    <button
+                      key={question}
+                      onClick={() => setMessage(question)}
+                      className="rounded-xl border border-[#deded9] bg-white p-4 text-left text-sm transition hover:border-[#aaa] hover:shadow-sm"
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-8">
+                {messages.map((item, index) => (
+                  <div key={index}>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#888]">
+                      {item.role === "user" ? "You" : "RUNSHEET AI"}
+                    </div>
+
+                    <div className="whitespace-pre-wrap text-[15px] leading-7">
+                      {item.content}
+                    </div>
+                  </div>
+                ))}
+
+                {loading && (
+                  <div className="text-sm text-[#888]">
+                    RUNSHEET AI is thinking...
+                  </div>
+                )}
               </div>
-
-              <h1 className="text-3xl font-semibold tracking-tight">
-                How can I help?
-              </h1>
-
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[#707070]">
-                Ask questions about assessment, pharmacology, differential
-                diagnosis, trauma, airway management, or other paramedic topics.
-              </p>
-            </div>
-
-            {/* Suggested questions */}
-            <div className="grid gap-3 sm:grid-cols-2">
-              {suggestions.map((question) => (
-                <button
-                  key={question}
-                  onClick={() => setMessage(question)}
-                  className="rounded-xl border border-[#deded9] bg-white p-4 text-left text-sm transition hover:border-[#aaa] hover:shadow-sm"
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Message box */}
-        <div className="sticky bottom-0 bg-[#f7f7f5] px-5 pb-5 pt-4 md:px-8">
+        {/* Composer */}
+        <div className="bg-[#f7f7f5] px-5 pb-5 pt-4 md:px-8">
           <div className="mx-auto max-w-3xl">
-            <div className="flex items-end rounded-2xl border border-[#d5d5d0] bg-white p-2 shadow-sm">
+            <div className="flex items-end rounded-2xl border border-[#d5d5d0] bg-white p-2 shadow-sm focus-within:border-[#999]">
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
                 placeholder="Ask a paramedic question..."
                 rows={1}
                 className="max-h-40 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none placeholder:text-[#999]"
               />
 
               <button
-                onClick={() => console.log(message)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171717] text-white hover:bg-[#333]"
+                onClick={sendMessage}
+                disabled={loading || !message.trim()}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171717] text-white hover:bg-[#333] disabled:cursor-not-allowed disabled:opacity-30"
               >
                 ↑
               </button>
